@@ -51,7 +51,6 @@
 		"wrangler": "3.95.0"
 	},
 	"peerDependencies": {
-		"unenv": "*",
 		"workerd": "^1.20241205.0"
 	},
 	"peerDependenciesMeta": {
