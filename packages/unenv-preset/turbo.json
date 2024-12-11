@@ -1,14 +1,9 @@
 {
 	"$schema": "http://turbo.build/schema.json",
-	"extends": [
-		"//"
-	],
+	"extends": ["//"],
 	"tasks": {
 		"build": {
-			"outputs": [
-				"dist/**",
-				"runtime/**"
-			]
+			"outputs": ["dist/**", "runtime/**"]
 		}
 	}
 }
