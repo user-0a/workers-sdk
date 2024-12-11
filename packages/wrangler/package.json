@@ -70,6 +70,8 @@
 	},
 	"dependencies": {
 		"@cloudflare/kv-asset-handler": "workspace:*",
+		"@cloudflare/unenv-preset": "workspace:*",
+		"@cloudflare/workers-shared": "workspace:*",
 		"@esbuild-plugins/node-globals-polyfill": "^0.2.3",
 		"@esbuild-plugins/node-modules-polyfill": "^0.2.2",
 		"blake3-wasm": "^2.1.5",
