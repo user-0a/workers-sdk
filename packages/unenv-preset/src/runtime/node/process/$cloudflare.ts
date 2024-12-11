@@ -87,7 +87,7 @@ import {
 	uptime,
 	version,
 	versions,
-} from "unenv/runtime/node/process/internal/process";
+} from "unenv/runtime/node/process/index";
 import type nodeProcess from "node:process";
 
 export {
@@ -179,7 +179,7 @@ export {
 	uptime,
 	version,
 	versions,
-} from "unenv/runtime/node/process/internal/process";
+} from "unenv/runtime/node/process/index";
 
 // The following is an unusual way to access the original/unpatched globalThis.process.
 // This is needed to get hold of the real process object before any of the unenv polyfills are
