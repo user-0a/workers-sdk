@@ -17,7 +17,7 @@ const workerName = generateResourceName();
 const dispatchNamespaceName = generateResourceName("dispatch");
 const dispatchWorkerName = generateResourceName();
 
-describe.skip("deployments", { timeout: TIMEOUT }, () => {
+describe("deployments", { timeout: TIMEOUT }, () => {
 	let deployedUrl: string;
 	const helper = new WranglerE2ETestHelper();
 
@@ -373,7 +373,7 @@ Current Version ID: 00000000-0000-0000-0000-000000000000`);
 	afterAll(async () => {
 		await testcase.afterAll(helper);
 	});
-	it.skip("deploys a Workers + Assets project with assets only", async () => {
+	it("deploys a Workers + Assets project with assets only", async () => {
 		await helper.seed({
 			"wrangler.toml": dedent`
 						name = "${workerName}"
