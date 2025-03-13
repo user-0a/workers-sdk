@@ -1,5 +1,5 @@
+import { ForwardableEmailMessage } from "@cloudflare/workers-types";
 import { EmailMessage } from "cloudflare:email";
-import { RpcTarget } from "cloudflare:workers";
 import {
 	blue,
 	bold,
@@ -11,16 +11,12 @@ import {
 	yellow,
 } from "kleur/colors";
 import { HttpError, LogLevel, SharedHeaders } from "miniflare:shared";
+import PostalMime, { Email } from "postal-mime";
 import { isCompressedByCloudflareFL } from "../../shared/mime-types";
-import { RAW_EMAIL } from "../email/constants";
+import { isEmailRepliable, validateReply } from "../email/validators.worker";
 import { CoreBindings, CoreHeaders } from "./constants";
 import { STATUS_CODES } from "./http";
 import { matchRoutes, WorkerRoute } from "./routing";
-import type {
-	ForwardableEmailMessage,
-	Headers,
-	ReadableStream,
-} from "@cloudflare/workers-types";
 
 type Env = {
 	[CoreBindings.SERVICE_LOOPBACK]: Fetcher;
@@ -377,38 +373,94 @@ async function handleEmail(
 	request: Request,
 	service: Fetcher,
 	env: Env,
-	ctx: ExecutionContext
+	_ctx: ExecutionContext
 ): Promise<Response> {
+	// `from` and `to` are the equivalent ones to the SMTP RCPT commands (not the ones in the email message itself)
 	const from = params.get("from") ?? "";
 	const to = params.get("to") ?? "";
+
 	if (!request.body) {
 		return new Response("Include an email in the body", { status: 400 });
 	}
 
-	// @ts-expect-error .email() is valid—we need to update the types...
+	// Get request blob as we need its size
+	const incomingEmailRaw = await (await request.blob()).bytes();
+
+	// Email worker limit is 25 MiB total
+	if (incomingEmailRaw.byteLength > 25 * 1024 * 1024) {
+		return new Response("Email is bigger than current limit - 25MiB.", {
+			status: 400,
+		});
+	}
+
+	let parsedIncomingEmail: Email;
+	try {
+		parsedIncomingEmail = await PostalMime.parse(incomingEmailRaw);
+	} catch (e) {
+		const error = e as Error;
+		return new Response(
+			`Email could not be parsed: ${error.name}: ${error.message}`,
+			{ status: 400 }
+		);
+	}
+
+	if (from !== parsedIncomingEmail.from.address) {
+		console.log(
+			`${yellow("Provided envelope from address doesn't match message From header")} - Envelope From: ${from}; Header From: ${parsedIncomingEmail.from.address}`
+		);
+	}
+
+	if (!parsedIncomingEmail.to?.map((addr) => addr.address).includes(to)) {
+		console.log(
+			`${yellow("Provided envelope to address doesn't match any message To address")} - Envelope To: ${to}; Header To: ${parsedIncomingEmail.to?.map((addr) => addr.address)}`
+		);
+	}
+
+	const incomingEmailHeaders = new Headers(
+		parsedIncomingEmail.headers.map((header) => [header.key, header.value])
+	);
+
+	let maybeClientError: string | undefined = undefined;
+
+	// @ts-expect-error .email is not in the fetcher but it's a valid RPC call.
 	await service.email(
+		// FIXME(lduarte): I have a feeling that because we are using RPC to do this, from + to + headers + readableStream can only take
+		// up 1MiB. Headers will probably be the part that takes up most space, but it's rare for emails headers to be that big.
 		createForwardableEmailMessage(
 			from,
 			to,
-			request.body,
-			request.headers,
+			new ReadableStream({
+				start(controller) {
+					// probably not the most efficient way to do this?
+					controller.enqueue(incomingEmailRaw);
+				},
+			}),
+			incomingEmailHeaders,
 			function setReject(reason: string): void {
 				console.log(
 					`${red(".setReject() called from Email Handler")} with the following reason: "${reason}"`
 				);
+				maybeClientError = reason;
 			},
 			async function forward(rcptTo: string, headers?: Headers): Promise<void> {
 				console.log(
 					`${blue(".forward() called from Email Handler")} with\n  rcptTo: ${rcptTo}${headers ? `\n  headers:\n${[...headers.entries()].map(([k, v]) => `    ${k}: ${v}`).join("\n")}` : ""}`
 				);
 			},
-			async function reply(message: EmailMessage): Promise<void> {
+			async function reply(replyMessage: EmailMessage): Promise<void> {
+				if (!isEmailRepliable(parsedIncomingEmail, incomingEmailHeaders)) {
+					throw new Error("original email is not repliable");
+				}
+				const finalReply = await validateReply(
+					parsedIncomingEmail,
+					replyMessage
+				);
+
 				const resp = await env[CoreBindings.SERVICE_LOOPBACK].fetch(
 					"http://localhost/core/store-temp-file?extension=eml",
 					{
 						method: "POST",
-						// @ts-expect-error See packages/miniflare/src/workers/email/email.worker.ts
-						body: message[RAW_EMAIL],
+						body: finalReply,
 					}
 				);
 				const file = await resp.text();
@@ -419,6 +471,13 @@ async function handleEmail(
 			}
 		)
 	);
+
+	if (maybeClientError !== undefined) {
+		return new Response(
+			`Email worker rejected email with the following reason: ${maybeClientError}`,
+			{ status: 400 }
+		);
+	}
 
 	return new Response(null, {
 		status: 200,
