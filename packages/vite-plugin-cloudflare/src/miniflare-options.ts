@@ -225,6 +225,8 @@ export function getDevMiniflareOptions(
 			bindings: {
 				CONFIG: {
 					has_user_worker: resolvedPluginConfig.type === "workers",
+					invoke_user_worker_ahead_of_assets:
+						assetsConfig?.run_worker_first ?? false,
 				},
 			},
 			serviceBindings: {
