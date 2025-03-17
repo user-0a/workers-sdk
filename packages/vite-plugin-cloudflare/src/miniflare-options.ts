@@ -14,6 +14,7 @@ import {
 	unstable_getMiniflareWorkerOptions,
 	unstable_readConfig,
 } from "wrangler";
+import { getAssetsConfig } from "./asset-config";
 import {
 	ASSET_WORKER_NAME,
 	ASSET_WORKERS_COMPATIBILITY_DATE,
@@ -202,11 +203,14 @@ export function getDevMiniflareOptions(
 	viteDevServer: vite.ViteDevServer
 ): MiniflareOptions {
 	const resolvedViteConfig = viteDevServer.config;
+	const logger = new ViteMiniflareLogger(resolvedViteConfig);
 	const entryWorkerConfig = getEntryWorkerConfig(resolvedPluginConfig);
-	const assetsConfig =
-		resolvedPluginConfig.type === "assets-only"
-			? resolvedPluginConfig.config.assets
-			: entryWorkerConfig?.assets;
+	const assetsConfig = getAssetsConfig(
+		resolvedPluginConfig,
+		entryWorkerConfig?.assets,
+		logger,
+		resolvedViteConfig
+	);
 
 	const assetWorkers: Array<WorkerOptions> = [
 		{
@@ -226,14 +230,14 @@ export function getDevMiniflareOptions(
 				CONFIG: {
 					has_user_worker: resolvedPluginConfig.type === "workers",
 					invoke_user_worker_ahead_of_assets:
-						assetsConfig?.run_worker_first ?? false,
+						assetsConfig.run_worker_first ?? false,
 				},
 			},
 			serviceBindings: {
 				ASSET_WORKER: ASSET_WORKER_NAME,
 				...(entryWorkerConfig
 					? {
-							USER_WORKER: assetsConfig?.run_worker_first
+							USER_WORKER: assetsConfig.run_worker_first
 								? entryWorkerConfig.name
 								: createUserWorkerFetcher(entryWorkerConfig.name),
 						}
@@ -254,14 +258,7 @@ export function getDevMiniflareOptions(
 				},
 			],
 			bindings: {
-				CONFIG: {
-					...(assetsConfig?.html_handling
-						? { html_handling: assetsConfig.html_handling }
-						: {}),
-					...(assetsConfig?.not_found_handling
-						? { not_found_handling: assetsConfig.not_found_handling }
-						: {}),
-				},
+				CONFIG: assetsConfig,
 			},
 		},
 	];
@@ -362,8 +359,6 @@ export function getDevMiniflareOptions(
 		getWorkerToDurableObjectClassNamesMap(userWorkers);
 	const workerToWorkflowEntrypointClassNamesMap =
 		getWorkerToWorkflowEntrypointClassNamesMap(userWorkers);
-
-	const logger = new ViteMiniflareLogger(resolvedViteConfig);
 
 	return {
 		log: logger,
@@ -509,10 +504,12 @@ function getPreviewModules(
 }
 
 export function getPreviewMiniflareOptions(
+	resolvedPluginConfig: ResolvedPluginConfig,
 	vitePreviewServer: vite.PreviewServer,
 	persistState: PersistState
 ): MiniflareOptions {
 	const resolvedViteConfig = vitePreviewServer.config;
+	const logger = new ViteMiniflareLogger(resolvedViteConfig);
 	const configPaths = getWorkerConfigPaths(resolvedViteConfig.root);
 	const workerConfigs = configPaths.map((configPath) =>
 		unstable_readConfig({ config: configPath })
@@ -526,6 +523,17 @@ export function getPreviewMiniflareOptions(
 		const { ratelimits, modulesRules, ...workerOptions } =
 			miniflareWorkerOptions.workerOptions;
 
+		const assetConfig = getAssetsConfig(
+			resolvedPluginConfig,
+			config.assets,
+			logger,
+			resolvedViteConfig
+		);
+
+		if (workerOptions.assets) {
+			workerOptions.assets = { ...workerOptions.assets, ...{ assetConfig } };
+		}
+
 		return [
 			{
 				...workerOptions,
@@ -537,8 +545,6 @@ export function getPreviewMiniflareOptions(
 			...externalWorkers,
 		];
 	});
-
-	const logger = new ViteMiniflareLogger(resolvedViteConfig);
 
 	return {
 		log: logger,

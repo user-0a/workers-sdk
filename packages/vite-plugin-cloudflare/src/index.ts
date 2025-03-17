@@ -57,16 +57,16 @@ export function cloudflare(pluginConfig: PluginConfig = {}): vite.Plugin[] {
 		{
 			name: "vite-plugin-cloudflare",
 			config(userConfig, env) {
-				if (env.isPreview) {
-					// Short-circuit the whole configuration if we are in preview mode
-					return { appType: "custom" };
-				}
-
 				resolvedPluginConfig = resolvePluginConfig(
 					pluginConfig,
 					userConfig,
 					env
 				);
+
+				if (env.isPreview) {
+					// Short-circuit the whole configuration if we are in preview mode
+					return { appType: "custom" };
+				}
 
 				if (!workersConfigsWarningShown) {
 					workersConfigsWarningShown = true;
@@ -346,6 +346,7 @@ export function cloudflare(pluginConfig: PluginConfig = {}): vite.Plugin[] {
 			configurePreviewServer(vitePreviewServer) {
 				const miniflare = new Miniflare(
 					getPreviewMiniflareOptions(
+						resolvedPluginConfig,
 						vitePreviewServer,
 						pluginConfig.persistState ?? true
 					)
@@ -366,11 +367,9 @@ export function cloudflare(pluginConfig: PluginConfig = {}): vite.Plugin[] {
 					vitePreviewServer.config.logger
 				);
 
-				return () => {
-					vitePreviewServer.middlewares.use((req, res, next) => {
-						middleware(req, res, next);
-					});
-				};
+				vitePreviewServer.middlewares.use((req, res, next) => {
+					middleware(req, res, next);
+				});
 			},
 		},
 		// Plugin to support `CompiledWasm` modules
