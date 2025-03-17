@@ -1,13 +1,31 @@
 import * as path from "node:path";
-import { constructHeaders } from "@cloudflare/workers-shared/utils/configuration/constructConfiguration";
+import {
+	constructHeaders,
+	constructRedirects,
+} from "@cloudflare/workers-shared/utils/configuration/constructConfiguration";
 import { parseHeaders } from "@cloudflare/workers-shared/utils/configuration/parseHeaders";
-import { HEADERS_FILENAME } from "@cloudflare/workers-shared/utils/constants";
+import { parseRedirects } from "@cloudflare/workers-shared/utils/configuration/parseRedirects";
+import {
+	HEADERS_FILENAME,
+	REDIRECTS_FILENAME,
+} from "@cloudflare/workers-shared/utils/constants";
 import { maybeGetFile } from "@cloudflare/workers-shared/utils/helpers";
-import { HeadersSchema } from "@cloudflare/workers-shared/utils/types";
+import {
+	HeadersSchema,
+	RedirectsSchema,
+} from "@cloudflare/workers-shared/utils/types";
 import { Log } from "miniflare";
 import type { ResolvedPluginConfig } from "./plugin-config";
 import type { ResolvedConfig } from "vite";
 import type { Unstable_Config } from "wrangler";
+
+export function getRedirectsPath(config: ResolvedConfig): string {
+	return path.join(config.publicDir, REDIRECTS_FILENAME);
+}
+
+export function getHeadersPath(config: ResolvedConfig): string {
+	return path.join(config.publicDir, HEADERS_FILENAME);
+}
 
 export function getAssetsConfig(
 	resolvedPluginConfig: ResolvedPluginConfig,
@@ -32,7 +50,19 @@ export function getAssetsConfig(
 		error: viteLogger.error.bind(viteLogger),
 	};
 
-	const headersFile = path.join(metadataDirectory, HEADERS_FILENAME);
+	const redirectsFile = getRedirectsPath(resolvedConfig);
+	const redirectsContents = maybeGetFile(redirectsFile);
+	const redirects =
+		redirectsContents &&
+		RedirectsSchema.parse(
+			constructRedirects({
+				redirects: parseRedirects(redirectsContents),
+				redirectsFile,
+				logger,
+			}).redirects
+		);
+
+	const headersFile = getHeadersPath(resolvedConfig);
 	const headersContents = maybeGetFile(headersFile);
 	const headers =
 		headersContents &&
@@ -46,6 +76,7 @@ export function getAssetsConfig(
 
 	return {
 		...config,
+		...(redirects ? { redirects } : {}),
 		...(headers ? { headers } : {}),
 	};
 }

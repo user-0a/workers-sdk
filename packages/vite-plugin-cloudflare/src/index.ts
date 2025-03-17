@@ -7,6 +7,7 @@ import { createMiddleware } from "@hattip/adapter-node";
 import MagicString from "magic-string";
 import { Miniflare } from "miniflare";
 import * as vite from "vite";
+import { getHeadersPath, getRedirectsPath } from "./asset-config";
 import {
 	createCloudflareEnvironmentOptions,
 	initRunners,
@@ -249,7 +250,11 @@ export function cloudflare(pluginConfig: PluginConfig = {}): vite.Plugin[] {
 				}
 			},
 			handleHotUpdate(options) {
-				if (resolvedPluginConfig.configPaths.has(options.file)) {
+				if (
+					resolvedPluginConfig.configPaths.has(options.file) ||
+					getRedirectsPath(options.server.config) === options.file ||
+					getHeadersPath(options.server.config) === options.file
+				) {
 					options.server.restart();
 				}
 			},
