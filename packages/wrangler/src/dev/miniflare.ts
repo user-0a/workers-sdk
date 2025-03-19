@@ -706,6 +706,12 @@ export function buildMiniflareBindingOptions(config: MiniflareBindingsConfig): {
 			bindings.hyperdrive?.map(hyperdriveEntry) ?? []
 		),
 		workflows: Object.fromEntries(bindings.workflows?.map(workflowEntry) ?? []),
+		email: {
+			// @ts-expect-error `type` is there, somehow?
+			send_email: bindings.send_email?.map(({ type: _, ...rest }) => ({
+				...rest,
+			})),
+		},
 
 		durableObjects: Object.fromEntries([
 			...internalObjects.map(({ name, class_name }) => {

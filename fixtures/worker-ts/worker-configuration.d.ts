@@ -2,5 +2,8 @@
 
 interface Env extends Env {
 	KV: KVNamespace;
+	UNBOUND_SEND: SendEmail;
+	SPECIFIC_SEND: SendEmail;
+	LIST_SEND: SendEmail;
 	// AI: Ai;
 }

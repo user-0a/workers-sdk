@@ -181,7 +181,9 @@ export function printBindings(
 						value: addSuffix(
 							destination_address ||
 								allowed_destination_addresses?.join(", ") ||
-								"unrestricted"
+								"unrestricted",
+							// the send_email binding works in --remote but also in local dev, so we take the context.local value
+							{ isSimulatedLocally: context.local ?? true }
 						),
 					};
 				}

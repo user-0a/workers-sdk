@@ -74,7 +74,6 @@ export function isEmailRepliable(
 	}
 
 	if (email.inReplyTo === undefined && email.references === undefined) {
-		console.log("repliable because no inreplyto and references");
 		return true;
 	}
 
@@ -127,7 +126,7 @@ export async function validateReply(
 		throw new Error("From: header does not match mail from");
 	}
 	const replyEmailHeaders = new Headers(
-		parsedReply.headers.map((header) => Object.entries(header)).flat()
+		parsedReply.headers.map((header) => [header.key, header.value])
 	);
 
 	// reply cannot mess with the Received header

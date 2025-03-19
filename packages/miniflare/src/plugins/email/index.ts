@@ -1,23 +1,34 @@
 import EMAIL_MESSAGE from "worker:email/email";
+import SEND_EMAIL_BINDING from "worker:email/send_email";
 import { z } from "zod";
-import { Worker_Binding } from "../../runtime";
-import { Plugin } from "../shared";
+import { Extension, Worker_Binding } from "../../runtime";
+import { Plugin, WORKER_BINDING_SERVICE_LOOPBACK } from "../shared";
 
-// const RatelimitConfigSchema = z.object({
-// 	simple: z.object({
-// 		limit: z.number().gt(0),
+// Define the mutually exclusive schema
+const EmailBindingOptionsSchema = z
+	.object({
+		name: z.string(),
+	})
+	.and(
+		z.union([
+			z.object({
+				destination_address: z.string().optional(),
+				allowed_destination_addresses: z.never().optional(),
+			}),
+			z.object({
+				allowed_destination_addresses: z.array(z.string()).optional(),
+				destination_address: z.never().optional(),
+			}),
+		])
+	);
 
-// 		// may relax this to be any number in the future
-// 		period: z.nativeEnum(PeriodType).optional(),
-// 	}),
-// });
-// export const OptionsSchema = z.object({
-// 	email: z.unknown().optional(),
-// });
+const EmailOptionsSchema = z.object({
+	send_email: z.array(EmailBindingOptionsSchema).optional(),
+});
 
 export const EMAIL_PLUGIN_NAME = "email";
-// const SERVICE_RATELIMIT_PREFIX = `${RATELIMIT_PLUGIN_NAME}`;
-// const SERVICE_RATELIMIT_MODULE = `cloudflare-internal:${SERVICE_RATELIMIT_PREFIX}:module`;
+const SERVICE_SEND_EMAIL_PREFIX = "SEND-EMAIL";
+const SERVICE_SEND_EMAIL_MODULE = `cloudflare-internal:${SERVICE_SEND_EMAIL_PREFIX}:module`;
 
 function buildJsonBindings(bindings: Record<string, any>): Worker_Binding[] {
 	return Object.entries(bindings).map(([name, value]) => ({
@@ -33,64 +44,62 @@ function createPlugin<O extends z.ZodType, S extends z.ZodType | undefined>(
 }
 
 export const EMAIL_PLUGIN = createPlugin({
-	options: z.object({
-		email: z.unknown().optional(),
-	}),
-	getBindings(options) {
-		// if (!options.ratelimits) {
-		// 	return [];
-		// }
-		// const bindings = Object.entries(options.ratelimits).map<Worker_Binding>(
-		// 	([name, config]) => ({
-		// 		name,
-		// 		wrapped: {
-		// 			moduleName: SERVICE_RATELIMIT_MODULE,
-		// 			innerBindings: buildJsonBindings({
-		// 				namespaceId: name,
-		// 				limit: config.simple.limit,
-		// 				period: config.simple.period,
-		// 			}),
-		// 		},
-		// 	})
-		// );
-		// return bindings;
-		return [];
+	options: z.object({ email: EmailOptionsSchema.optional() }),
+	getBindings(options): Worker_Binding[] {
+		if (!options.email?.send_email) {
+			return [];
+		}
+
+		const sendEmailBindings = options.email?.send_email;
+
+		return sendEmailBindings.map(({ name, ...config }) => ({
+			name,
+			wrapped: {
+				moduleName: SERVICE_SEND_EMAIL_MODULE,
+				innerBindings: [
+					...buildJsonBindings(config),
+					WORKER_BINDING_SERVICE_LOOPBACK, // needed to send email to tmp folder
+				],
+			},
+		}));
 	},
 	getNodeBindings(_options) {
 		return {};
-		// if (!options.ratelimits) {
-		// 	return {};
-		// }
-		// return Object.fromEntries(
-		// 	Object.keys(options.ratelimits).map((name) => [
-		// 		name,
-		// 		new ProxyNodeBinding(),
-		// 	])
-		// );
 	},
 	async getServices(args) {
-		// if (!args.options.email) {
-		// 	return [];
-		// }
+		const extensions: Extension[] = [];
+		// we only want to insert on the first worker as it will be shared between them
+		if (args.workerIndex === 0) {
+			extensions.push({
+				modules: [
+					{
+						name: "cloudflare-internal:email",
+						esModule: EMAIL_MESSAGE(),
+						internal: true,
+					},
+				],
+			});
+		}
+
+		const hasSendEmail =
+			args.options.email?.send_email?.length !== undefined &&
+			args.options.email?.send_email?.length > 0;
+		// we only want to insert on the first worker as it will be shared between them
+		if (args.workerIndex === 0 && hasSendEmail) {
+			extensions.push({
+				modules: [
+					{
+						name: SERVICE_SEND_EMAIL_MODULE,
+						esModule: SEND_EMAIL_BINDING(),
+						internal: true,
+					},
+				],
+			});
+		}
 
 		return {
 			services: [],
-			extensions:
-				// The `cloudflare-internal:email` module is shared and can only be added once.
-				// As such, only add it on the first Worker
-				args.workerIndex === 0
-					? [
-							{
-								modules: [
-									{
-										name: "cloudflare-internal:email",
-										esModule: EMAIL_MESSAGE(),
-										internal: true,
-									},
-								],
-							},
-						]
-					: [],
+			extensions,
 		};
 	},
 });
