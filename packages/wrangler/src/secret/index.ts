@@ -92,7 +92,7 @@ async function createDraftWorker({
 					d1_databases: [],
 					vectorize: [],
 					hyperdrive: [],
-					secret_stores: [],
+					secrets_store_secrets: [],
 					services: [],
 					analytics_engine_datasets: [],
 					wasm_modules: {},
