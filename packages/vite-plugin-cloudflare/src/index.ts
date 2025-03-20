@@ -3,6 +3,10 @@ import * as fs from "node:fs";
 import * as fsp from "node:fs/promises";
 import { builtinModules } from "node:module";
 import * as path from "node:path";
+import {
+	HEADERS_FILENAME,
+	REDIRECTS_FILENAME,
+} from "@cloudflare/workers-shared/utils/constants";
 import { createMiddleware } from "@hattip/adapter-node";
 import MagicString from "magic-string";
 import { Miniflare } from "miniflare";
@@ -282,7 +286,13 @@ export function cloudflare(pluginConfig: PluginConfig = {}): vite.Plugin[] {
 				}
 			},
 			handleHotUpdate(options) {
-				if (resolvedPluginConfig.configPaths.has(options.file)) {
+				if (
+					[
+						path.join(resolvedViteConfig.publicDir, HEADERS_FILENAME),
+						path.join(resolvedViteConfig.publicDir, REDIRECTS_FILENAME),
+					].includes(options.file) ||
+					resolvedPluginConfig.configPaths.has(options.file)
+				) {
 					options.server.restart();
 				}
 			},

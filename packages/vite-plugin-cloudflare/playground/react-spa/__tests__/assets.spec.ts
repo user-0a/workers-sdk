@@ -41,3 +41,14 @@ test("supports proxying with _redirects", async ({}) => {
 		readFileSync(join(__dirname, "../public/vite.svg")).buffer
 	);
 });
+
+test.todo("supports metafiles on non-HTML assets", async ({}) => {
+	const headerResponse = await fetch(`${viteTestUrl}/vite.svg`);
+	expect(headerResponse.headers.get("X-Header")).toBe("Custom-Value!!!");
+
+	const redirectResponse = await fetch(`${viteTestUrl}/file.txt`, {
+		redirect: "manual",
+	});
+	expect(redirectResponse.status).toBe(302);
+	expect(redirectResponse.headers.get("Location")).toBe("/other-place");
+});

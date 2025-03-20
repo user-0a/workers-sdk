@@ -18,7 +18,6 @@ import {
 	HeadersSchema,
 	RedirectsSchema,
 } from "@cloudflare/workers-shared/utils/types";
-import { watch } from "chokidar";
 import {
 	kCurrentWorker,
 	Log,
@@ -227,13 +226,6 @@ export function getDevMiniflareOptions(
 		resolvedViteConfig.publicDir,
 		REDIRECTS_FILENAME
 	);
-
-	watch([headersFile, redirectsFile], {
-		persistent: true,
-		ignoreInitial: true,
-	}).on("all", async () => {
-		viteDevServer.restart();
-	});
 
 	const redirectsContents = maybeGetFile(redirectsFile);
 	const headersContents = maybeGetFile(headersFile);
