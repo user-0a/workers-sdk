@@ -78,7 +78,6 @@ export class SendEmailBinding {
 	}
 }
 
-// create a new Ratelimit
 export default function (env: SendEmailEnv) {
 	return new SendEmailBinding(env);
 }

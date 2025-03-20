@@ -51,7 +51,7 @@ export function parseMessageIdStyleValue(input: string): string[] | undefined {
 	return output;
 }
 
-export function isEmailRepliable(
+export function isEmailReplyable(
 	email: Email,
 	incomingEmailHeaders: Headers
 ): boolean {

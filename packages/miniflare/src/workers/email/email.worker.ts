@@ -11,7 +11,7 @@ class EmailMessage implements EmailMessageType {
 		// - EmailMessage to be constructable (to match production)
 		// - EmailMessage to be able to be passed across JSRPC (to support e.g. message.reply(EmailMessage))
 		// - EmailMessage properties to be synchronously available (to match production). This rules out `RpcStub`
-		// The below is the only solution I could some up with that satisfies these contraints, but if the contrainsts change
+		// The below is the only solution I could some up with that satisfies these constraints, but if the constraints change
 		// this can and should be re-evaluated
 		return {
 			from,

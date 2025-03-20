@@ -985,13 +985,13 @@ export class Miniflare {
 				response = new Response(null, { status: 204 });
 			} else if (url.pathname === "/core/store-temp-file") {
 				await mkdir(path.join(this.#tmpPath, "files"), { recursive: true });
-				const emailPath = path.join(
+				const filePath = path.join(
 					this.#tmpPath,
 					"files",
 					`${crypto.randomUUID()}.${url.searchParams.get("extension") ?? "txt"}`
 				);
-				await writeFile(emailPath, await request.text());
-				response = new Response(emailPath, { status: 200 });
+				await writeFile(filePath, await request.text());
+				response = new Response(filePath, { status: 200 });
 			}
 		} catch (e: any) {
 			this.#log.error(e);
