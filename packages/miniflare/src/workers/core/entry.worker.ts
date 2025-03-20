@@ -13,7 +13,8 @@ import {
 import { HttpError, LogLevel, SharedHeaders } from "miniflare:shared";
 import PostalMime, { Email } from "postal-mime";
 import { isCompressedByCloudflareFL } from "../../shared/mime-types";
-import { isEmailRepliable, validateReply } from "../email/validators.worker";
+import { MiniflareEmailMessage } from "../email/email.worker";
+import { isEmailReplyable, validateReply } from "../email/validators.worker";
 import { CoreBindings, CoreHeaders } from "./constants";
 import { STATUS_CODES } from "./http";
 import { matchRoutes, WorkerRoute } from "./routing";
@@ -378,8 +379,9 @@ async function handleEmail(
 	// `from` and `to` are the equivalent ones to the SMTP RCPT commands (not the ones in the email message itself)
 	const from = params.get("from") ?? "";
 	const to = params.get("to") ?? "";
-
-	if (!request.body) {
+	// clone request as we need to the body to be cloned to forward it to the inside of the worker
+	const clonedRequest = request.clone();
+	if (!request.body || !clonedRequest.body) {
 		return new Response("Include an email in the body", { status: 400 });
 	}
 
@@ -429,12 +431,7 @@ async function handleEmail(
 		createForwardableEmailMessage(
 			from,
 			to,
-			new ReadableStream({
-				start(controller) {
-					// probably not the most efficient way to do this?
-					controller.enqueue(incomingEmailRaw);
-				},
-			}),
+			clonedRequest.body,
 			incomingEmailHeaders,
 			function setReject(reason: string): void {
 				console.log(
@@ -448,12 +445,13 @@ async function handleEmail(
 				);
 			},
 			async function reply(replyMessage: EmailMessage): Promise<void> {
-				if (!isEmailRepliable(parsedIncomingEmail, incomingEmailHeaders)) {
+				if (!isEmailReplyable(parsedIncomingEmail, incomingEmailHeaders)) {
 					throw new Error("original email is not repliable");
 				}
 				const finalReply = await validateReply(
 					parsedIncomingEmail,
-					replyMessage
+					// In local dev, email messages will be always miniflare simulated ones, so the type-cast is safe.
+					replyMessage as MiniflareEmailMessage
 				);
 
 				const resp = await env[CoreBindings.SERVICE_LOOPBACK].fetch(

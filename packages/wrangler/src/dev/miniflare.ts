@@ -707,10 +707,7 @@ export function buildMiniflareBindingOptions(config: MiniflareBindingsConfig): {
 		),
 		workflows: Object.fromEntries(bindings.workflows?.map(workflowEntry) ?? []),
 		email: {
-			// @ts-expect-error `type` is there, somehow?
-			send_email: bindings.send_email?.map(({ type: _, ...rest }) => ({
-				...rest,
-			})),
+			send_email: bindings.send_email,
 		},
 
 		durableObjects: Object.fromEntries([

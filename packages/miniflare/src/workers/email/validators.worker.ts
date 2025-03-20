@@ -1,7 +1,7 @@
-import { EmailMessage } from "cloudflare:email";
 import { blue } from "kleur/colors";
 import PostalMime, { Email } from "postal-mime";
 import { RAW_EMAIL } from "./constants";
+import { type MiniflareEmailMessage as EmailMessage } from "./email.worker";
 
 /**
  *
@@ -107,7 +107,6 @@ export async function validateReply(
 	incomingMessage: Email,
 	replyMessage: EmailMessage
 ): Promise<Uint8Array> {
-	// @ts-expect-error types types types
 	const rawEmail: ReadableStream<Uint8Array> = replyMessage[RAW_EMAIL];
 
 	const rawEmailBuffer = new Uint8Array(

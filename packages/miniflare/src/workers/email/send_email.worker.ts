@@ -1,7 +1,9 @@
+import { WorkerEntrypoint } from "cloudflare:workers";
 import { blue } from "kleur/colors";
 import PostalMime, { Email } from "postal-mime";
 import { CoreBindings } from "../core/constants";
 import { RAW_EMAIL } from "./constants";
+import { type MiniflareEmailMessage as EmailMessage } from "./email.worker";
 
 interface SendEmailEnv {
 	[CoreBindings.SERVICE_LOOPBACK]: Fetcher;
@@ -9,29 +11,26 @@ interface SendEmailEnv {
 	allowed_destination_addresses?: string[];
 }
 
-export class SendEmailBinding {
-	#env: SendEmailEnv;
-
-	constructor(env: SendEmailEnv) {
-		this.#env = env;
+export class SendEmailBinding extends WorkerEntrypoint<SendEmailEnv> {
+	constructor(ctx: ExecutionContext, env: SendEmailEnv) {
+		super(ctx, env);
 	}
 
 	async send(emailMessage: EmailMessage): Promise<void> {
 		if (
-			this.#env.destination_address !== undefined &&
-			emailMessage.to !== this.#env.destination_address
+			this.env.destination_address !== undefined &&
+			emailMessage.to !== this.env.destination_address
 		) {
 			throw new Error(`email to ${emailMessage.to} not allowed`);
 		}
 
 		if (
-			this.#env.allowed_destination_addresses !== undefined &&
-			!this.#env.allowed_destination_addresses.includes(emailMessage.to)
+			this.env.allowed_destination_addresses !== undefined &&
+			!this.env.allowed_destination_addresses.includes(emailMessage.to)
 		) {
 			throw new Error(`email to ${emailMessage.to} not allowed`);
 		}
 
-		// @ts-expect-error it exists :) just not on worker types
 		const rawEmail: ReadableStream<Uint8Array> = emailMessage[RAW_EMAIL];
 
 		const rawEmailBuffer = new Uint8Array(
@@ -63,7 +62,7 @@ export class SendEmailBinding {
 			throw new Error("invalid headers set");
 		}
 
-		const resp = await this.#env[CoreBindings.SERVICE_LOOPBACK].fetch(
+		const resp = await this.env[CoreBindings.SERVICE_LOOPBACK].fetch(
 			"http://localhost/core/store-temp-file?extension=eml",
 			{
 				method: "POST",
@@ -76,8 +75,4 @@ export class SendEmailBinding {
 			`${blue("send_email binding called with the following message:")}\n  ${file}`
 		);
 	}
-}
-
-export default function (env: SendEmailEnv) {
-	return new SendEmailBinding(env);
 }

@@ -1,7 +1,7 @@
 import EMAIL_MESSAGE from "worker:email/email";
 import SEND_EMAIL_BINDING from "worker:email/send_email";
 import { z } from "zod";
-import { Extension, Worker_Binding } from "../../runtime";
+import { Extension, Service, Worker_Binding } from "../../runtime";
 import { Plugin, WORKER_BINDING_SERVICE_LOOPBACK } from "../shared";
 
 // Define the mutually exclusive schema
@@ -27,8 +27,7 @@ const EmailOptionsSchema = z.object({
 });
 
 export const EMAIL_PLUGIN_NAME = "email";
-const SERVICE_SEND_EMAIL_PREFIX = "SEND-EMAIL";
-const SERVICE_SEND_EMAIL_MODULE = `cloudflare-internal:${SERVICE_SEND_EMAIL_PREFIX}:module`;
+const SERVICE_SEND_EMAIL_WORKER_PREFIX = `SEND-EMAIL-WORKER`;
 
 function buildJsonBindings(bindings: Record<string, any>): Worker_Binding[] {
 	return Object.entries(bindings).map(([name, value]) => ({
@@ -50,16 +49,13 @@ export const EMAIL_PLUGIN = createPlugin({
 			return [];
 		}
 
-		const sendEmailBindings = options.email?.send_email;
+		const sendEmailBindings = options.email?.send_email ?? [];
 
-		return sendEmailBindings.map(({ name, ...config }) => ({
+		return sendEmailBindings.map(({ name, ..._config }) => ({
 			name,
-			wrapped: {
-				moduleName: SERVICE_SEND_EMAIL_MODULE,
-				innerBindings: [
-					...buildJsonBindings(config),
-					WORKER_BINDING_SERVICE_LOOPBACK, // needed to send email to tmp folder
-				],
+			service: {
+				entrypoint: "SendEmailBinding",
+				name: `${SERVICE_SEND_EMAIL_WORKER_PREFIX}-${name}`,
 			},
 		}));
 	},
@@ -68,6 +64,7 @@ export const EMAIL_PLUGIN = createPlugin({
 	},
 	async getServices(args) {
 		const extensions: Extension[] = [];
+		const services: Service[] = [];
 		// we only want to insert on the first worker as it will be shared between them
 		if (args.workerIndex === 0) {
 			extensions.push({
@@ -84,21 +81,31 @@ export const EMAIL_PLUGIN = createPlugin({
 		const hasSendEmail =
 			args.options.email?.send_email?.length !== undefined &&
 			args.options.email?.send_email?.length > 0;
-		// we only want to insert on the first worker as it will be shared between them
-		if (args.workerIndex === 0 && hasSendEmail) {
-			extensions.push({
-				modules: [
-					{
-						name: SERVICE_SEND_EMAIL_MODULE,
-						esModule: SEND_EMAIL_BINDING(),
-						internal: true,
+		// we only want to insert on the first worker as it will be shared between them since it's a service?
+		if (hasSendEmail) {
+			const sendEmailOptions = args.options.email?.send_email ?? [];
+			services.push(
+				...sendEmailOptions.map(({ name, ...config }) => ({
+					name: `${SERVICE_SEND_EMAIL_WORKER_PREFIX}-${name}`,
+					worker: {
+						compatibilityDate: "2025-03-17",
+						modules: [
+							{
+								name: "send_email.mjs",
+								esModule: SEND_EMAIL_BINDING(),
+							},
+						],
+						bindings: [
+							...buildJsonBindings(config),
+							WORKER_BINDING_SERVICE_LOOPBACK, // needed to send email to tmp folder
+						],
 					},
-				],
-			});
+				}))
+			);
 		}
 
 		return {
-			services: [],
+			services,
 			extensions,
 		};
 	},

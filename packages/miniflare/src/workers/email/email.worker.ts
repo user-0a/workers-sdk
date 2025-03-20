@@ -1,6 +1,14 @@
 import { RAW_EMAIL } from "./constants";
 import type { EmailMessage as EmailMessageType } from "@cloudflare/workers-types/experimental";
 
+// Because `EmailMessage` is not on the runtime, we use a different type for it, read below
+// for more details:
+export type MiniflareEmailMessage = {
+	from: string;
+	to: string;
+	[RAW_EMAIL]: ReadableStream<Uint8Array>;
+};
+
 class EmailMessage implements EmailMessageType {
 	public constructor(
 		public readonly from: string,
