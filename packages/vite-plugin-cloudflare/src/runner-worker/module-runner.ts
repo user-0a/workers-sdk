@@ -2,14 +2,15 @@ import {
 	createWebSocketModuleRunnerTransport,
 	ModuleRunner,
 } from "vite/module-runner";
-import { MODULE_PATTERN, UNKNOWN_HOST } from "../shared";
+import { additionalModuleRE, UNKNOWN_HOST } from "../shared";
 import type { WrapperEnv } from "./env";
 
 let moduleRunner: ModuleRunner;
 
 export async function createModuleRunner(
 	env: WrapperEnv,
-	webSocket: WebSocket
+	webSocket: WebSocket,
+	viteRoot: string
 ) {
 	if (moduleRunner) {
 		throw new Error("Runner already initialized");
@@ -25,7 +26,7 @@ export async function createModuleRunner(
 
 	moduleRunner = new ModuleRunner(
 		{
-			root: env.__VITE_ROOT__,
+			root: viteRoot,
 			sourcemapInterceptor: "prepareStackTrace",
 			transport: {
 				...transport,
@@ -74,10 +75,8 @@ export async function createModuleRunner(
 				}
 			},
 			async runExternalModule(filepath) {
-				const moduleRE = new RegExp(MODULE_PATTERN);
-
 				if (
-					!moduleRE.test(filepath) &&
+					!additionalModuleRE.test(filepath) &&
 					filepath.includes("/node_modules") &&
 					!filepath.includes("/node_modules/.vite")
 				) {
