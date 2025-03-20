@@ -71,5 +71,6 @@ function createWorkerBundleFormData(
 		limits: config?.limits,
 		assets: undefined,
 		observability: undefined,
+		secrets: undefined,
 	});
 }

@@ -185,6 +185,7 @@ export async function createRemoteWorkerInit(props: {
 		tail_consumers: undefined, // no tail consumers in dev - TODO revisit?
 		limits: undefined, // no limits in preview - not supported yet but can be added
 		observability: undefined, // no observability in dev
+		secrets: undefined, // no secrets in dev, use .dev.vars - TODO: revisit?
 	};
 
 	return init;

@@ -365,6 +365,7 @@ export interface CfWorkerInit {
 	keepVars: boolean | undefined;
 	keepSecrets: boolean | undefined;
 	keepBindings?: WorkerMetadata["keep_bindings"];
+	secrets: Record<string, string> | undefined;
 	logpush: boolean | undefined;
 	placement: CfPlacement | undefined;
 	tail_consumers: CfTailConsumer[] | undefined;

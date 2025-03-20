@@ -168,6 +168,7 @@ export async function copyWorkerVersionWithNewSecrets({
 		compatibility_date: versionInfo.resources.script_runtime.compatibility_date,
 		compatibility_flags:
 			versionInfo.resources.script_runtime.compatibility_flags,
+		secrets: undefined, // handled in rawBindings
 		keepVars: false, // we're re-uploading everything
 		keepSecrets: false, // handled in keepBindings
 		keepBindings,

@@ -194,6 +194,7 @@ export function createWorkerUploadForm(worker: CfWorkerInit): FormData {
 		keepVars,
 		keepSecrets,
 		keepBindings,
+		secrets,
 		logpush,
 		placement,
 		tail_consumers,
@@ -237,6 +238,10 @@ export function createWorkerUploadForm(worker: CfWorkerInit): FormData {
 		} else {
 			metadataBindings.push({ name: key, type: "json", json: value });
 		}
+	});
+
+	Object.entries(secrets || {})?.forEach(([key, value]) => {
+		metadataBindings.push({ name: key, type: "secret_text", text: value });
 	});
 
 	bindings.kv_namespaces?.forEach(({ id, binding }) => {

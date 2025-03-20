@@ -89,6 +89,7 @@ type Props = {
 	legacyAssetPaths: LegacyAssetPaths | undefined;
 	assetsOptions: AssetsOptions | undefined;
 	vars: Record<string, string> | undefined;
+	secrets: Record<string, string> | undefined;
 	defines: Record<string, string> | undefined;
 	alias: Record<string, string> | undefined;
 	triggers: string[] | undefined;
@@ -693,6 +694,7 @@ See https://developers.cloudflare.com/workers/platform/compatibility-dates for m
 			compatibility_flags: compatibilityFlags,
 			keepVars,
 			keepSecrets: keepVars, // keepVars implies keepSecrets
+			secrets: props.secrets,
 			logpush: props.logpush !== undefined ? props.logpush : config.logpush,
 			placement,
 			tail_consumers: config.tail_consumers,

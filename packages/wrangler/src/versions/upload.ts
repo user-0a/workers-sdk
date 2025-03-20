@@ -74,6 +74,7 @@ type Props = {
 	compatibilityFlags: string[] | undefined;
 	assetsOptions: AssetsOptions | undefined;
 	vars: Record<string, string> | undefined;
+	secrets: Record<string, string> | undefined;
 	defines: Record<string, string> | undefined;
 	alias: Record<string, string> | undefined;
 	jsxFactory: string | undefined;
@@ -180,6 +181,12 @@ export const versionsUploadCommand = createCommand({
 		},
 		var: {
 			describe: "A key-value pair to be injected into the script as a variable",
+			type: "string",
+			requiresArg: true,
+			array: true,
+		},
+		secret: {
+			describe: "A key-value pair to be injected into the script as a secret",
 			type: "string",
 			requiresArg: true,
 			array: true,
@@ -304,6 +311,7 @@ export const versionsUploadCommand = createCommand({
 		}
 
 		const cliVars = collectKeyValues(args.var);
+		const cliSecrets = collectKeyValues(args.secret);
 		const cliDefines = collectKeyValues(args.define);
 		const cliAlias = collectKeyValues(args.alias);
 
@@ -345,6 +353,7 @@ export const versionsUploadCommand = createCommand({
 				: args.compatibilityDate,
 			compatibilityFlags: args.compatibilityFlags,
 			vars: cliVars,
+			secrets: cliSecrets,
 			defines: cliDefines,
 			alias: cliAlias,
 			jsxFactory: args.jsxFactory,
@@ -663,7 +672,10 @@ See https://developers.cloudflare.com/workers/platform/compatibility-dates for m
 			compatibility_date: props.compatibilityDate ?? config.compatibility_date,
 			compatibility_flags: compatibilityFlags,
 			keepVars: false, // the wrangler.toml should be the source-of-truth for vars
-			keepSecrets: true, // until wrangler.toml specifies secret bindings, we need to inherit from the previous Worker Version
+			// before the `secret` arg existed, this would always be true.
+			// thus, if no secrets are provided, we should inherit from the previous Worker Version to maintain backwards compatibility.
+			keepSecrets: Object.entries(props.secrets || {}).length === 0,
+			secrets: props.secrets,
 			placement,
 			tail_consumers: config.tail_consumers,
 			limits: config.limits,

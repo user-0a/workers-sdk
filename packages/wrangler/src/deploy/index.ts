@@ -113,6 +113,12 @@ export const deployCommand = createCommand({
 			requiresArg: true,
 			array: true,
 		},
+    secret: {
+      describe: "A key-value pair to be injected into the script as a secret",
+      type: "string",
+      requiresArg: true,
+      array: true,
+    },
 		define: {
 			describe: "A key-value pair to be substituted in the script",
 			type: "string",
@@ -251,6 +257,7 @@ export const deployCommand = createCommand({
 		}
 
 		const cliVars = collectKeyValues(args.var);
+    const cliSecrets = collectKeyValues(args.secret);
 		const cliDefines = collectKeyValues(args.define);
 		const cliAlias = collectKeyValues(args.alias);
 
@@ -299,6 +306,7 @@ export const deployCommand = createCommand({
 				: args.compatibilityDate,
 			compatibilityFlags: args.compatibilityFlags,
 			vars: cliVars,
+			secrets: cliSecrets,
 			defines: cliDefines,
 			alias: cliAlias,
 			triggers: args.triggers,
