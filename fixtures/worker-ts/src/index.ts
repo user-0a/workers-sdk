@@ -1,7 +1,3 @@
-import { EmailMessage } from "cloudflare:email";
-import { env, WorkerEntrypoint } from "cloudflare:workers";
-import { createMimeMessage } from "mimetext";
-
 /**
  * Welcome to Cloudflare Workers! This is your first worker.
  *
@@ -11,74 +7,28 @@ import { createMimeMessage } from "mimetext";
  *
  * Learn more at https://developers.cloudflare.com/workers/
  */
+export interface Env {
+	// Example binding to KV. Learn more at https://developers.cloudflare.com/workers/runtime-apis/kv/
+	// MY_KV_NAMESPACE: KVNamespace;
+	//
+	// Example binding to Durable Object. Learn more at https://developers.cloudflare.com/workers/runtime-apis/durable-objects/
+	// MY_DURABLE_OBJECT: DurableObjectNamespace;
+	//
+	// Example binding to R2. Learn more at https://developers.cloudflare.com/workers/runtime-apis/r2/
+	// MY_BUCKET: R2Bucket;
+	//
+	// Example binding to a Service. Learn more at https://developers.cloudflare.com/workers/runtime-apis/service-bindings/
+	// MY_SERVICE: Fetcher;
+}
 
-export default class extends WorkerEntrypoint<Env> {
-	async fetch(request: Request): Promise<Response> {
+export default {
+	async fetch(
+		request: Request,
+		env: Env,
+		ctx: ExecutionContext
+	): Promise<Response> {
 		const url = new URL(request.url);
 		if (url.pathname === "/error") throw new Error("Hello Error");
-
-		// const msg = createMimeMessage();
-		// // msg.setHeader("In-Reply-To", message.headers.get("Message-ID"));
-		// msg.setSender({ name: "GPT-4", addr: "sender@penalosa.cloud" });
-		// msg.setRecipient("message@from");
-		// msg.setSubject("An email generated in a worker");
-		// msg.addMessage({
-		// 	contentType: "text/plain",
-		// 	data: `Congratulations, you just sent an email from a worker.`,
-		// });
-		// var m = new EmailMessage(
-		// 	"sender@penalosa.cloud",
-		// 	"message@from",
-		// 	msg.asRaw()
-		// );
-		// console.log(m);
-		// _env.AI;
-		this.ctx;
-		if (url.pathname === "/send") {
-			const msg = createMimeMessage();
-			// msg.setHeader("In-Reply-To", message.headers.get("Message-ID"));
-			msg.setSender({ name: "GPT-4", addr: "sender@penalosa.cloud" });
-			msg.setRecipient("else@exmaple.com");
-			msg.setSubject("An email generated in a worker");
-			msg.addMessage({
-				contentType: "text/plain",
-				data: `Congratulations, you just sent an email from a worker.`,
-			});
-			var m = new EmailMessage(
-				"sender@penalosa.cloud",
-				"else@exmaple.com",
-				msg.asRaw()
-			);
-			await this.env.LIST_SEND.send(m);
-		}
-
 		return new Response("Hello World!");
-	}
-	async email(message: ForwardableEmailMessage) {
-		const msg = createMimeMessage();
-		msg.setHeader("In-Reply-To", message.headers.get("Message-ID")!);
-		msg.setSender({ name: "Sender", addr: "sender@penalosa.cloud" });
-		msg.setRecipient(message.from);
-		msg.setSubject("An email generated in a worker");
-		msg.addMessage({
-			contentType: "text/plain",
-			data: `Congratulations, you just sent an email from a worker.`,
-		});
-
-		var m = new EmailMessage(
-			"sender@penalosa.cloud",
-			message.from,
-			msg.asRaw()
-		);
-		await message.forward(
-			"samuel@macleod.space",
-			new Headers({ hello: "world" })
-		);
-		message.setReject("Rejection reason");
-		await message.reply(m);
-	}
-
-	async scheduled() {
-		console.log("I'm scheduled!");
-	}
-}
+	},
+};
